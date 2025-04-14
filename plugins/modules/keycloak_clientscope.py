@@ -295,7 +295,7 @@ end_state:
 '''
 
 from ansible_collections.community.general.plugins.module_utils.identity.keycloak.keycloak import KeycloakAPI, camel, \
-    keycloak_argument_spec, get_token, KeycloakError, is_struct_included
+    keycloak_argument_spec, get_token, KeycloakError, is_struct_included, normalize_diffmode_boolean
 from ansible.module_utils.basic import AnsibleModule
 import copy
 
@@ -305,6 +305,9 @@ def normalize_checkmode(clientscoperep):
         result['attributes'] = {key:result['attributes'][key] for key in sorted(result['attributes'].keys())}
     if 'protocolMappers' in result:
         result['protocolMappers'] = list(sorted(result['protocolMappers'], key= lambda mapper: mapper.get('name')))
+        for mapper in result['protocolMappers']:
+            if 'config' in mapper:
+                mapper['config'] = normalize_diffmode_boolean(mapper['config'])
     return dict((k, v) for k, v in result.items() if v)
 
 def sanitize_cr(clientscoperep):
