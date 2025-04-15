@@ -716,6 +716,7 @@ from ansible_collections.community.general.plugins.module_utils.identity.keycloa
     nonify_absences,
     keycloak_argument_spec,
     get_token,
+    normalize_diffmode_boolean,
     KeycloakError,
 )
 from ansible.module_utils.basic import AnsibleModule
@@ -734,7 +735,7 @@ def normalise_cr(clientrep, remove_ids=False):
     clientrep = clientrep.copy()
 
     if "attributes" in clientrep:
-        clientrep["attributes"] = dict(sorted(clientrep["attributes"].items()))
+        clientrep["attributes"] = normalize_diffmode_boolean(dict(sorted(clientrep["attributes"].items())))
         # Ignore unchangeable attributes
         attribute_ignorelist = ["saml.artifact.binding.identifier", "client.secret.creation.time"]
         for attr in attribute_ignorelist:
@@ -752,6 +753,8 @@ def normalise_cr(clientrep, remove_ids=False):
         for mapper in clientrep["protocolMappers"]:
             if remove_ids:
                 mapper.pop("id", None)
+            if 'config' in mapper:
+                mapper['config'] = normalize_diffmode_boolean(mapper['config'])
 
             # Set to a default value.
             mapper["consentRequired"] = mapper.get("consentRequired", False)

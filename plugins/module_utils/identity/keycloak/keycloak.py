@@ -133,6 +133,12 @@ def nonify_absences(before, desired):
         elif isinstance(v, dict):
             nonify_absences(v, desired[k])
 
+# Normalize booleans in dictionaries to 'true' or 'false' to suppress false positive diffs
+def normalize_diffmode_boolean(dictionary):
+    normalized_dictionary = {}
+    for k, v in dictionary.items():
+        normalized_dictionary[k] = str(v).lower() if str(v) in ['True', 'False'] else v
+    return normalized_dictionary
 
 class KeycloakError(Exception):
     pass
