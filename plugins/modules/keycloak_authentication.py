@@ -413,7 +413,7 @@ def correct_execution_index(kc, realm, existing_execs, new_exec):
     current_exec["index"] = new_exec["index"]
 
 
-def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='master'):
+def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='master', kc26=False):
     """
     Create or update executions for an authentication flow.
     :param kc: Keycloak API access.
@@ -500,6 +500,8 @@ def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='m
                 else:
                     levels_indices[current_level] += 1
                 new_exec["index"] = levels_indices[current_level]
+                if kc26 and ("priority" not in new_exec or new_exec["priority"] is None):
+                    new_exec["priority"] = new_exec["index"]
 
                 # Check if there exists an execution with same name/providerID, at the same level as new execution
                 exec_index = find_exec_in_executions(new_exec, existing_executions, changed_executions_ids)
@@ -632,10 +634,12 @@ def main():
                                           flowAlias=dict(type='str'),
                                           authenticationConfig=dict(type='dict'),
                                           index=dict(type='int'),
-                                          description=dict(type='str')
+                                          description=dict(type='str'),
+                                          priority=dict(type='int')
                                       )),
         state=dict(choices=["absent", "present", "exact"], default='present'),
         force=dict(type='bool', default=False),
+        kc26=dict(type='bool', default=False)
     )
 
     argument_spec.update(meta_args)
@@ -659,6 +663,7 @@ def main():
     realm = module.params.get('realm')
     state = module.params.get('state')
     force = module.params.get('force')
+    kc26 = module.params.get('kc26')
 
     new_auth_repr = {
         "alias": module.params.get("alias"),
@@ -706,7 +711,7 @@ def main():
                 module.fail_json(**result)
 
             # Configure the executions for the flow
-            create_or_update_executions(kc=kc, config=new_auth_repr, check_mode=module.check_mode or module.params["check"], new_flow=True, realm=realm)
+            create_or_update_executions(kc=kc, config=new_auth_repr, check_mode=module.check_mode or module.params["check"], new_flow=True, realm=realm, kc26=kc26)
 
             # Get executions created
             exec_repr = kc.get_executions_representation(config=new_auth_repr, realm=realm)
@@ -739,7 +744,7 @@ def main():
 
             # Configure the executions for the flow
             changed, diff, err_msg = create_or_update_executions(kc=kc, config=new_auth_repr, \
-                check_mode=module.check_mode or module.params["check"], new_flow= False, realm=realm)
+                check_mode=module.check_mode or module.params["check"], new_flow= False, realm=realm, kc26=kc26)
             result['changed'] |= changed
 
             if module._diff:
