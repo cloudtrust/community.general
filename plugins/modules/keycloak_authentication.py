@@ -503,6 +503,9 @@ def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='m
                 if kc26 and ("priority" not in new_exec or new_exec["priority"] is None):
                     new_exec["priority"] = new_exec["index"]
 
+                if not kc26:
+                    del new_exec["priority"]
+
                 # Check if there exists an execution with same name/providerID, at the same level as new execution
                 exec_index = find_exec_in_executions(new_exec, existing_executions, changed_executions_ids)
                 if exec_index != -1:
