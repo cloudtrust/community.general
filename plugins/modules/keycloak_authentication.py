@@ -559,7 +559,7 @@ def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='m
                         add_error_line(err_msg_lines=err_msg, err_msg="wrong index", flow=config["alias"],
                             exec_name=get_identifier(new_exec), expected=new_exec["index"],
                             actual=existing_exec["index"])
-                        if not check_mode:
+                        if not check_mode and not kc26:
                             correct_execution_index(
                                 kc, realm, existing_executions, new_exec)
                 else:
@@ -578,7 +578,7 @@ def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='m
 
                         # Keycloak creates new executions with the lowest
                         # priority
-                        if not new_flow:
+                        if not new_flow and not kc26:
                             # If the main flow is new, we don't have to
                             # push executions up.
                             correct_execution_index(
