@@ -75,8 +75,13 @@ options:
                 type: dict
             index:
                 description:
-                    - Priority order of the execution.
+                    - Index order of the execution.
                 type: int
+            priority:
+                description:
+                    - Priority order of the execution. Defaults to index if not specified.
+                type: int
+
     state:
         description:
             - Control if the authentication flow must exists or not.
@@ -385,35 +390,7 @@ def add_diff_entry(new_exec, old_exec, before, after):
         after["executions"][exec_key]["authenticationConfig"] = before["executions"][exec_key]["authenticationConfig"] | after["executions"][exec_key]["authenticationConfig"]
 
 
-def correct_execution_index(kc, realm, existing_execs, new_exec):
-    """
-    Shifts the execution matching new_exec on the server side to match the
-    new_exec's index and applies the server side modifications on the local
-    objects
-
-    :param kc: keycloak instance to use for server side modifications
-    :param realm: realm on which modifications are applied
-    :param existing_execs: current state of the server side executions
-        (as returned by kc.get_executions_representation). Is modified to
-        reflect server side changes
-    :param new_exec: expected execution configuration
-    """
-    current_exec = [e for e in existing_execs if e["id"] == new_exec["id"]][0]
-    shift = current_exec["index"] - new_exec["index"]
-    if shift == 0:
-        return existing_execs
-
-    kc.change_execution_priority(new_exec["id"], shift, realm=realm)
-    # Align the local representation with the server side changes
-    for e in existing_execs:
-        if e["level"] == new_exec["level"] and \
-                e["index"] >= new_exec["index"] and \
-                e["index"] < current_exec["index"]:
-            e["index"] += 1
-    current_exec["index"] = new_exec["index"]
-
-
-def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='master', kc26=False):
+def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='master'):
     """
     Create or update executions for an authentication flow.
     :param kc: Keycloak API access.
@@ -500,11 +477,10 @@ def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='m
                 else:
                     levels_indices[current_level] += 1
                 new_exec["index"] = levels_indices[current_level]
-                if kc26 and ("priority" not in new_exec or new_exec["priority"] is None):
-                    new_exec["priority"] = new_exec["index"]
 
-                if not kc26:
-                    del new_exec["priority"]
+                # Add priority from index if none were specified
+                if ("priority" not in new_exec or new_exec["priority"] is None):
+                    new_exec["priority"] = new_exec["index"]
 
                 # Check if there exists an execution with same name/providerID, at the same level as new execution
                 exec_index = find_exec_in_executions(new_exec, existing_executions, changed_executions_ids)
@@ -559,9 +535,6 @@ def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='m
                         add_error_line(err_msg_lines=err_msg, err_msg="wrong index", flow=config["alias"],
                             exec_name=get_identifier(new_exec), expected=new_exec["index"],
                             actual=existing_exec["index"])
-                        if not check_mode and not kc26:
-                            correct_execution_index(
-                                kc, realm, existing_executions, new_exec)
                 else:
                     if not check_mode:
                         created_execution, existing_executions = \
@@ -575,14 +548,6 @@ def create_or_update_executions(kc, config, check_mode, new_flow=False, realm='m
                         update_authentication_execution(
                             kc, flow_alias_parent, new_exec, check_mode,
                             realm)
-
-                        # Keycloak creates new executions with the lowest
-                        # priority
-                        if not new_flow and not kc26:
-                            # If the main flow is new, we don't have to
-                            # push executions up.
-                            correct_execution_index(
-                                kc, realm, existing_executions, new_exec)
 
                         auth_conf = new_exec.get("authenticationConfig")
                         if auth_conf is not None:
@@ -641,8 +606,7 @@ def main():
                                           priority=dict(type='int')
                                       )),
         state=dict(choices=["absent", "present", "exact"], default='present'),
-        force=dict(type='bool', default=False),
-        kc26=dict(type='bool', default=False)
+        force=dict(type='bool', default=False)
     )
 
     argument_spec.update(meta_args)
@@ -666,7 +630,6 @@ def main():
     realm = module.params.get('realm')
     state = module.params.get('state')
     force = module.params.get('force')
-    kc26 = module.params.get('kc26')
 
     new_auth_repr = {
         "alias": module.params.get("alias"),
@@ -714,7 +677,7 @@ def main():
                 module.fail_json(**result)
 
             # Configure the executions for the flow
-            create_or_update_executions(kc=kc, config=new_auth_repr, check_mode=module.check_mode or module.params["check"], new_flow=True, realm=realm, kc26=kc26)
+            create_or_update_executions(kc=kc, config=new_auth_repr, check_mode=module.check_mode or module.params["check"], new_flow=True, realm=realm)
 
             # Get executions created
             exec_repr = kc.get_executions_representation(config=new_auth_repr, realm=realm)
@@ -747,7 +710,7 @@ def main():
 
             # Configure the executions for the flow
             changed, diff, err_msg = create_or_update_executions(kc=kc, config=new_auth_repr, \
-                check_mode=module.check_mode or module.params["check"], new_flow= False, realm=realm, kc26=kc26)
+                check_mode=module.check_mode or module.params["check"], new_flow= False, realm=realm)
             result['changed'] |= changed
 
             if module._diff:

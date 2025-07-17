@@ -9,35 +9,24 @@ from __future__ import absolute_import, division, print_function
 
 __metaclass__ = type
 
-DOCUMENTATION = """
+DOCUMENTATION = '''
 ---
 module: keycloak_scope_mappings
 
 short_description: Allows administration of Keycloak client scope mappings via Keycloak API
 
-
 description:
     - This module allows the administration of Keycloak client scope mappings vie the KeyCloak API
+'''
 
-options:
+EXAMPLES = '''
     TODO
-"""
+'''
 
-EXAMPLES = """
-    TODO
-"""
-
-RETURN = """
-TODO
-msg:
-
-proposed:
-
-existing:
-
-end_state:
-
-"""
+RETURN = '''
+message:
+    description: TODO
+'''
 
 from ansible_collections.community.general.plugins.module_utils.identity.keycloak.keycloak import (
     KeycloakAPI,
