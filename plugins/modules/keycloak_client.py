@@ -795,6 +795,7 @@ def sanitize_cr(clientrep):
             result["attributes"]["saml.signing.private.key"] = "no_log"
     return normalise_cr(result)
 
+
 def get_clientscope_id(kc, clientscope_name, realm):
     """Retrieves the id of a clientscope from its name
 
@@ -1068,8 +1069,11 @@ def main():
                             kc.delete_clientscope_from_client(cid, get_clientscope_id(kc, scope, realm=realm), opt, realm=realm)
 
             after_client = kc.get_client_by_id(cid, realm=realm)
-            if before_client == after_client:
-                result["changed"] = False
+
+            # We need normalisation here as otherwise list order might factor
+            # in the diff
+            result["changed"] = \
+                normalise_cr(before_client) != normalise_cr(after_client)
             if module._diff:
                 result["diff"] = dict(
                     before=sanitize_cr(before_client), after=sanitize_cr(after_client)
